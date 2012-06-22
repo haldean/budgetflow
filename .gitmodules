@@ -5,7 +5,3 @@
 [submodule "haste-compiler"]
   path = tools/haste-compiler
   url = https://github.com/valderman/haste-compiler.git
-
-[submodule "uhc-js"]
-  path = uhc-js
-  url = https://github.com/UU-ComputerScience/uhc-js.git
