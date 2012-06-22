@@ -18,7 +18,7 @@ realMoneyValue :: Money -> Float
 realMoneyValue (Money val) = fromIntegral val / 100.0
 
 type Name = String
-type Percentage = Double
+type Percentage = Float
 
 data NodeType
   = Income Money

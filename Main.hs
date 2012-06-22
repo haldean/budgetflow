@@ -1,4 +1,5 @@
 import BudgetFlow
+import Haste
 
 dataSeriesJs :: (Name, [Money]) -> String
 dataSeriesJs (name, bals) = "[\"" ++ name ++ "\", " ++ show (map realMoneyValue bals) ++ "], "
@@ -9,4 +10,6 @@ outputChartJs series =
 
 sampleChartJs = outputChartJs $ accountHistories $ steps 10 sampleGraph
 
-main = putStrLn sampleChartJs
+--main = putStrLn sampleChartJs
+--main = alert sampleChartJs
+main = alert sampleChartJs
