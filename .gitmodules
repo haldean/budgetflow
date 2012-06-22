@@ -1,0 +1,6 @@
+[submodule "tools/fursuit"]
+	path = tools/fursuit
+	url = https://github.com/valderman/fursuit
+[submodule "tools/haste-compiler"]
+	path = tools/haste-compiler
+	url = https://github.com/valderman/haste-compiler
