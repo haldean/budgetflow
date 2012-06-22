@@ -1,2 +1,2 @@
 all:
-	uhc --import-path BudgetFlow/ --import-path uhc-js/uhc-js/src/ -tjs BudgetFlow/Main.hs
+	hastec --opt-google-closure=tools/compiler.jar BudgetFlow/Main.hs

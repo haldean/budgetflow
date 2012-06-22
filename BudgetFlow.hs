@@ -1,14 +1,21 @@
+module BudgetFlow where
+
 import Numeric
+import Data.Map (Map, fromListWith, toAscList)
 
 -- Types
 
 newtype Money = Money Integer
 instance Show Money where
-  show (Money val) = "$" ++ (showFFloat (Just 2) (fromIntegral val / 100) $ "")
+  show (Money val) = '$' : showFFloat (Just 2) (fromIntegral val / 100.0) ""
 
-zero = (Money 0)
+zero = Money 0
+
 moneyValue :: Money -> Integer
 moneyValue (Money val) = val
+
+realMoneyValue :: Money -> Float
+realMoneyValue (Money val) = fromIntegral val / 100.0
 
 type Name = String
 type Percentage = Double
@@ -24,7 +31,7 @@ data Amount
   | RelativeAmount Percentage
   deriving Show
 
-data Edge = Edge Amount Node deriving Show
+data Edge = Edge { edgeAmount :: Amount, edgeNode :: Node } deriving Show
 
 data Node = Node Name NodeType [Edge] deriving Show
 data Graph = Graph Node deriving Show
@@ -48,7 +55,7 @@ deposit :: NodeType -> NodeType -> Amount -> NodeType
 deposit depositFrom (Account (Money bal) grow) amount =
   Account (Money (bal + transfer)) grow
     where transfer = moneyValue $ amountValue amount depositFrom
-deposit _ exp@(Expenditure) _ = exp
+deposit _ exp@Expenditure _ = exp
 
 withdraw :: NodeType -> Amount -> NodeType
 withdraw withdrawFrom@(Income _) _ = withdrawFrom
@@ -60,12 +67,12 @@ withdraw withdrawFrom@(Account (Money bal) grow) amount =
 
 sampleGraph = Graph $
   Node "Income" (Income (Money 666666))
-    [(Edge (RelativeAmount 0.5)
+    [Edge (RelativeAmount 0.5)
         (Node "Checking account" (Account zero 0)
-          [(Edge (AbsoluteAmount (Money 40000))
-              (Node "Food" (Expenditure) []))])),
-     (Edge (RelativeAmount 0.5)
-        (Node "Savings account" (Account zero 0.05) []))]
+          [Edge (AbsoluteAmount (Money 40000))
+              (Node "Food" Expenditure [])]),
+     Edge (RelativeAmount 0.5)
+        (Node "Savings account" (Account zero 0.03) [])]
 
 -- Flow simulation
 
@@ -74,13 +81,11 @@ withdrawAlongEdge withdrawFrom (Edge amount _) =
   withdraw withdrawFrom amount
 
 allWithdrawals :: NodeType -> [Edge] -> NodeType
-allWithdrawals withdrawFrom [] = withdrawFrom
-allWithdrawals withdrawFrom (edge:rest) =
-  allWithdrawals (withdrawAlongEdge withdrawFrom edge) rest
+allWithdrawals = foldl withdrawAlongEdge
 
 applyInterest :: NodeType -> NodeType
 applyInterest (Account (Money bal) grow) =
-  Account (Money (bal + (round $ grow * fromIntegral bal))) grow
+  Account (Money (bal + round (grow * fromIntegral bal))) grow
 applyInterest nodeType = nodeType
 
 stepEdge :: NodeType -> Edge -> Edge
@@ -99,7 +104,7 @@ stepNode (Node name nodeType children) =
 step :: Graph -> Graph
 step (Graph root) = Graph $ stepNode root
 
--- Simulation aggregation
+-- Data aggregation
 
 steps :: Integer -> Graph -> [Graph]
 steps n graph
@@ -107,3 +112,24 @@ steps n graph
   | n > 0  =
     let graph' = step graph
     in graph' : steps (n - 1) graph'
+
+extractAccounts :: Graph -> [(Name, Money)]
+extractAccounts (Graph root) = map stripEdges $ accountNodes root
+
+stripEdges :: Node -> (Name, Money)
+stripEdges (Node name (Account bal _) _) = (name, bal)
+
+accountNodes :: Node -> [Node]
+accountNodes n@(Node _ (Account _ _) children) =
+  n : concatMap (accountNodes . edgeNode) children
+accountNodes n@(Node _ _ children) =
+  concatMap (accountNodes . edgeNode) children
+
+aggregateAccounts :: [(Name, Money)] -> Map Name [Money]
+aggregateAccounts accounts =
+  fromListWith (\x y -> y ++ x) $ map (\(name, val) -> (name, [val])) accounts
+
+accountHistories :: [Graph] -> [(Name, [Money])]
+accountHistories graphs =
+  toAscList $ aggregateAccounts $ concat $ map extractAccounts graphs
+  
