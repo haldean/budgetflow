@@ -1,13 +1,12 @@
 module BudgetFlow where
 
-import Numeric
-import Data.Map (Map, fromListWith, toAscList)
+--import Data.Map (Map, fromListWith, toAscList)
 
 -- Types
 
-newtype Money = Money Integer
+data Money = Money Integer
 instance Show Money where
-  show (Money val) = '$' : showFFloat (Just 2) (fromIntegral val / 100.0) ""
+  show (Money val) = (show val) ++ " cents"
 
 zero = Money 0
 
@@ -55,13 +54,13 @@ deposit :: NodeType -> NodeType -> Amount -> NodeType
 deposit depositFrom (Account (Money bal) grow) amount =
   Account (Money (bal + transfer)) grow
     where transfer = moneyValue $ amountValue amount depositFrom
-deposit _ exp@Expenditure _ = exp
+deposit _ Expenditure _ = Expenditure
 
 withdraw :: NodeType -> Amount -> NodeType
-withdraw withdrawFrom@(Income _) _ = withdrawFrom
-withdraw withdrawFrom@(Account (Money bal) grow) amount =
+withdraw (Income x) _ = Income x
+withdraw (Account (Money bal) grow) amount =
   Account (Money $ max 0 (bal - transfer)) grow
-    where transfer = moneyValue $ amountValue amount withdrawFrom
+    where transfer = moneyValue $ amountValue amount (Account (Money bal) grow)
 
 -- Sample graph
 
@@ -107,9 +106,8 @@ step (Graph root) = Graph $ stepNode root
 -- Data aggregation
 
 steps :: Integer -> Graph -> [Graph]
-steps n graph
-  | n == 0 = []
-  | n > 0  =
+steps n graph =
+  if n == 0 then [] else
     let graph' = step graph
     in graph' : steps (n - 1) graph'
 
@@ -120,11 +118,12 @@ stripEdges :: Node -> (Name, Money)
 stripEdges (Node name (Account bal _) _) = (name, bal)
 
 accountNodes :: Node -> [Node]
-accountNodes n@(Node _ (Account _ _) children) =
-  n : concatMap (accountNodes . edgeNode) children
-accountNodes n@(Node _ _ children) =
+accountNodes (Node x (Account y z) children) =
+  (Node x (Account y z) children) : concatMap (accountNodes . edgeNode) children
+accountNodes (Node _ _ children) =
   concatMap (accountNodes . edgeNode) children
 
+{-
 aggregateAccounts :: [(Name, Money)] -> Map Name [Money]
 aggregateAccounts accounts =
   fromListWith (\x y -> y ++ x) $ map (\(name, val) -> (name, [val])) accounts
@@ -133,3 +132,4 @@ accountHistories :: [Graph] -> [(Name, [Money])]
 accountHistories graphs =
   toAscList $ aggregateAccounts $ concat $ map extractAccounts graphs
   
+-}
